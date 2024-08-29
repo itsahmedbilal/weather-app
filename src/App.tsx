@@ -11,7 +11,7 @@ import useThemeUpdater from "./hooks/use-theme-updater";
 function App() {
   const [location, setLocation] = useState("Islamabad, Pakistan");
   const debouncedSearchLocation = useDebounce<string>(location, 1000);
-  const { weatherData, error } = useWeatherReport(debouncedSearchLocation);
+  const { weatherData, error, isLoading } = useWeatherReport(debouncedSearchLocation);
   const [theme, setTheme] = useState<ThemeTypes>(ThemeTypes.PartlyCloudy);
 
   useThemeUpdater({
@@ -29,52 +29,58 @@ function App() {
   );
 
   const renderWeatherIcon = useMemo(() => {
-    switch (theme) {
-      case ThemeTypes.PartlyCloudy:
-        return (
-          <div className="partly-cloudy-container">
-            <SunComponent />
-            <CloudComponent />
-          </div>
-        );
-      case ThemeTypes.Sunny:
-        return <SunComponent />;
-      case ThemeTypes.Rainy:
-        return (
-          <div className="rain-container">
-            <CloudComponent /> <RainDropsComponent />
-          </div>
-        );
-      case ThemeTypes.Cloudy:
-        return (
-          <div className="cloudy-container">
-            <CloudComponent /> <CloudComponent />
-          </div>
-        );
-      default:
-        return null;
-    }
+    const iconComponents: Record<ThemeTypes, JSX.Element | null> = {
+      [ThemeTypes.PartlyCloudy]: (
+        <div className="partly-cloudy-container">
+          <SunComponent />
+          <CloudComponent />
+        </div>
+      ),
+      [ThemeTypes.Sunny]: <SunComponent />,
+      [ThemeTypes.Rainy]: (
+        <div className="rain-container">
+          <CloudComponent /> <RainDropsComponent />
+        </div>
+      ),
+      [ThemeTypes.Cloudy]: (
+        <div className="cloudy-container">
+          <CloudComponent /> <CloudComponent />
+        </div>
+      ),
+      [ThemeTypes.Stormy]: null, // Add this line
+    };
+
+    return iconComponents[theme];
   }, [theme]);
 
   const renderWeatherInfo = useMemo(() => {
-    if (error) return <p>Error: {error}</p>;
+    if (error) return <p className="error-message">Error: {error}</p>;
+    if (isLoading) return <p className="loading-message">Loading...</p>;
     if (!weatherData) return null;
 
     const { current, location } = weatherData;
+    const weatherInfoItems = [
+      { label: "Temperature", value: `${current.temp_c}°C` },
+      { label: "Feels like", value: `${current.feelslike_c}°C` },
+      { label: "Humidity", value: `${current.humidity}%` },
+      { label: "Wind", value: `${current.wind_kph} km/h` },
+      { label: "Pressure", value: `${current.pressure_mb} mb` },
+      { label: "UV Index", value: current.uv },
+    ];
+
     return (
       <>
         <h2>
           {location.name}, {location.country}
         </h2>
-        <strong>Temperature: {current.temp_c}°C</strong>
-        <strong>Feels like: {current.feelslike_c}°C</strong>
-        <strong>Humidity: {current.humidity}%</strong>
-        <strong>Wind: {current.wind_kph} km/h</strong>
-        <strong>Pressure: {current.pressure_mb} mb</strong>
-        <strong>UV Index: {current.uv}</strong>
+        {weatherInfoItems.map(({ label, value }) => (
+          <strong key={label}>
+            {label}: {value}
+          </strong>
+        ))}
       </>
     );
-  }, [weatherData, error]);
+  }, [weatherData, error, isLoading]);
 
   return (
     <div className={`container ${theme}`}>
